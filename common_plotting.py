@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.dates as mdates
 from pandas.plotting import register_matplotlib_converters
 from sklearn.linear_model import LinearRegression
+from pathlib import Path
 
 hours = mdates.HourLocator()
 hours6 = mdates.HourLocator(interval=6)
@@ -22,11 +23,12 @@ def add_thp(thp, data):
 
 
 def read_data(filenames):
-    thp = pd.read_csv('thp_log.csv', parse_dates=['datetime'])
+    base_dir = Path('data') / Path('raw')
+    thp = pd.read_csv(base_dir / 'thp_log.csv', parse_dates=['datetime'])
     thp_pa = thp.loc[thp['pressure'] > 10000, 'pressure']
     thp.loc[thp['pressure'] > 10000, 'pressure'] = thp_pa / 100
     thp_sorted = thp.set_index('datetime').sort_values('datetime')
-    data_dict = {filename: add_thp(thp_sorted, pd.read_csv(filename, parse_dates=['datetime'], low_memory=False))
+    data_dict = {filename: add_thp(thp_sorted, pd.read_csv(base_dir / filename, parse_dates=['datetime'], low_memory=False))
                  for filename in filenames}
     return thp_sorted, data_dict
 
