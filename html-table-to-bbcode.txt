@@ -1,0 +1,11 @@
+Remove everything outside <table></table>
+%s/<table[^>]*>/[table]/
+%s/<\/table[^>]*>/[\/table]/
+g/thead/d
+g/tbody/d
+%s/<th>/[td][b]/g
+%s/<\/th>/[\/b][\/td]/g
+%s/<tr[^>]*>/[tr]/
+%s/<\/tr>/[\/tr]/
+%s/<td>/[td]/
+%s/<\/td>/[\/td]/g
