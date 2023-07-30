@@ -45,7 +45,7 @@ Comparing the stability of various resistance standards and calibrators against 
 
 Scripts:
 * `resistance-decade.ipynb`: Testing a resistance decade
-* `resistance.ipynb`: 
+* `resistance.ipynb`: Measuring the resistance and voltage tempco of my 3458As.
 * `Resistance transfers.ipynb`:
 * `sr104-results.ipynb`: Comparing SR104 measurements against 3458A
 
