@@ -22,9 +22,9 @@ def add_thp(thp, data):
                          direction='nearest')
 
 
-def read_data(filenames):
+def read_data(filenames, thp_file_name='thp_log.csv'):
     base_dir = Path('data') / Path('raw')
-    thp = pd.read_csv(base_dir / 'thp_log.csv', parse_dates=['datetime'])
+    thp = pd.read_csv(base_dir / thp_file_name, parse_dates=['datetime'])
     thp_pa = thp.loc[thp['pressure'] > 10000, 'pressure']
     thp.loc[thp['pressure'] > 10000, 'pressure'] = thp_pa / 100
     thp_sorted = thp.set_index('datetime').sort_values('datetime')
