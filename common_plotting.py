@@ -23,14 +23,30 @@ def add_thp(thp, data):
 
 
 def read_data(filenames, thp_file_name='thp_log.csv'):
-    base_dir = Path('data') / Path('raw')
-    thp = pd.read_csv(base_dir / thp_file_name, parse_dates=['datetime'])
+    thp = pd.read_csv(find_file(thp_file_name), parse_dates=['datetime'], date_format='ISO8601')
     thp_pa = thp.loc[thp['pressure'] > 10000, 'pressure']
     thp.loc[thp['pressure'] > 10000, 'pressure'] = thp_pa / 100
     thp_sorted = thp.set_index('datetime').sort_values('datetime')
-    data_dict = {filename: add_thp(thp_sorted, pd.read_csv(base_dir / filename, parse_dates=['datetime'], low_memory=False))
+    data_dict = {filename: add_thp(thp_sorted, pd.read_csv(find_file(filename), parse_dates=['datetime'], date_format='ISO8601', low_memory=False))
                  for filename in filenames}
     return thp_sorted, data_dict
+
+
+def read_data_without_thp(filenames):
+    data_dict = {filename: pd.read_csv(find_file(filename), parse_dates=['datetime'], date_format='ISO8601', low_memory=False)
+                 for filename in filenames}
+    return data_dict
+
+
+def find_file(filename):
+    raw_base_dir = Path('data') / Path('raw')
+    compressed_base_dir = Path('data')
+    if (found_name := raw_base_dir / filename).exists():
+        return found_name
+    elif (found_name := compressed_base_dir / f"{filename}.bz2").exists():
+        return found_name
+    else:
+        raise FileNotFoundError(f"Could not find {filename} in {raw_base_dir} or {compressed_base_dir}")
 
 
 def filter_column_on_percentile(data, column=None):
