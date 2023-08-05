@@ -18,8 +18,11 @@ def analyse_dcv(absolute_data, relative_data, meter_absolute, meter_relative):
     return _dcv_combine_absolute_and_relative(absolute_ratios_in_ppm, relative_results_in_ppm)
 
 
-def analyse_dcv_k182(relative_data_k182):
-    short_voltage = relative_data_k182[relative_data_k182.dut_pos_lead != "short"]["k182_dcv"].mean()
+def analyse_dcv_k182(relative_data_k182, substract_short_offset=False):
+    if substract_short_offset:
+        short_voltage = relative_data_k182[relative_data_k182.dut_pos_lead != "short"]["k182_dcv"].mean()
+    else:
+        short_voltage = 0
     relative_data = relative_data_k182[(relative_data_k182.dut_pos_lead != "short")]
     results = analyse_dcv_relative(relative_data, "F7001bat", 10, "F7001bat", "k182", short_voltage)
     return results
