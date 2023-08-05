@@ -36,8 +36,8 @@ Scripts:
 Comparing the stability of various voltage references against each other and against a 3458A.
 
 Scripts:
-* `vrefs.ipynb`: Comparisons of most recent measurements starting 2022
-* `vref_comparison.ipynb`: Older analysis
+* `vrefs.ipynb`: Comparison of all historical measurements trying to establish drift.
+* `old_vref_comparison.ipynb`: Older analysis
 
 ### Resistance transfers
 
