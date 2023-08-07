@@ -64,6 +64,13 @@ Comparing the stability of various meters against each other.
 Scripts:
 * `w4950-w4920-ks3458a-comparison-sweeps.ipynb`: Comparing HPAK 3458A, Wavetek 4950 and Wavetek 4920
 
+### xDevs nanovolt data
+
+Just playing around with some xDevs nanovolt data to visualize change in behaviour over time.
+
+Scripts:
+* `time_series_histogram.ipynb`
+
 ### Events
 
 #### Metrology Meet 2022 (organized by branadic)
