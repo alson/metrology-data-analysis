@@ -44,15 +44,28 @@ def analyse_dcv_relative(relative_data, reference_name, reference_value, new_ref
     return relative_results_in_ppm
 
 
-def analyse_dcv_absolute(absolute_data, reference_name, meter, skip_bad_groups=False):
+def analyse_dcv_absolute(absolute_data, reference_name, meter, skip_bad_groups=False, with_pressure_and_humidity=False):
     absolute_data_with_groups = add_dut_and_setting_group(absolute_data)
     # display(analyse_group_quality(absolute_data_with_groups, f'{meter}_dcv'))
-    absolute_data_first_and_last_in_group_removed = clean_groups(absolute_data_with_groups, meter)
-    cleaned_absolute_data = aggregate_absolute_data_by_group(absolute_data_first_and_last_in_group_removed, meter)
-    absolute_grouped_by_dut_group = aggregate_absolute_data_by_dut_group(cleaned_absolute_data, meter)
-    absolute_results = absolute_grouped_by_dut_group.groupby("dut").agg(
-        {"dcv_mean": "mean", "dcv_sem": combine_stds_sum, "temperature_mean": "mean", "datetime": "mean"}
+    absolute_data_first_and_last_in_group_removed = clean_groups(absolute_data_with_groups, meter, skip_bad_groups)
+    cleaned_absolute_data = aggregate_absolute_data_by_group(
+        absolute_data_first_and_last_in_group_removed, meter, with_pressure_and_humidity
     )
+    absolute_grouped_by_dut_group = aggregate_absolute_data_by_dut_group(
+        cleaned_absolute_data, meter, with_pressure_and_humidity
+    )
+    if with_pressure_and_humidity:
+        agg = {
+            "dcv_mean": "mean",
+            "dcv_sem": combine_stds_sum,
+            "temperature_mean": "mean",
+            "pressure_mean": "mean",
+            "humidity_mean": "mean",
+            "datetime": "mean",
+        }
+    else:
+        agg = {"dcv_mean": "mean", "dcv_sem": combine_stds_sum, "temperature_mean": "mean", "datetime": "mean"}
+    absolute_results = absolute_grouped_by_dut_group.groupby("dut").agg(agg)
     ratios_from_absolute = dcv_calculate_ratios(absolute_grouped_by_dut_group, reference_name)
     ratios_in_ppm = _absolute_results_to_ppm(ratios_from_absolute)
     return absolute_results, ratios_in_ppm
@@ -102,44 +115,72 @@ def dcv_calculate_ratios(grouped_by_dut, reference):
     return ratios_from_absolute
 
 
-def aggregate_absolute_data_by_group(data, meter):
-    return (
-        data.reset_index()
-        .groupby("group")
-        .agg(
-            {
-                f"{meter}_dcv": ["mean", "std", "sem", "count"],
-                "temperature": ["mean", "std", "sem", "count"],
-                "dut": "last",
-                "dut_setting": "last",
-                "datetime": "mean",
-            }
-        )
-    )
+def aggregate_absolute_data_by_group(data, meter, with_pressure_and_humidity=False):
+    if with_pressure_and_humidity:
+        agg = {
+            f"{meter}_dcv": ["mean", "std", "sem", "count"],
+            "temperature": ["mean", "std", "sem", "count"],
+            "pressure": ["mean", "std", "sem", "count"],
+            "humidity": ["mean", "std", "sem", "count"],
+            "dut": "last",
+            "dut_setting": "last",
+            "datetime": "mean",
+        }
+    else:
+        agg = {
+            f"{meter}_dcv": ["mean", "std", "sem", "count"],
+            "temperature": ["mean", "std", "sem", "count"],
+            "dut": "last",
+            "dut_setting": "last",
+            "datetime": "mean",
+        }
+
+    return data.reset_index().groupby("group").agg(agg)
 
 
-def aggregate_absolute_data_by_dut_group(absolute_dcv_data, meter):
+def aggregate_absolute_data_by_dut_group(absolute_dcv_data, meter, with_pressure_and_humidity=False):
     data_with_dut_group = absolute_dcv_data.copy()
     data_with_dut_group["dut_group"] = (
         data_with_dut_group["dut"]["last"] != data_with_dut_group["dut"]["last"].shift(1)
     ).cumsum()
     data_with_dut_group.columns = ["_".join(col) for col in data_with_dut_group.columns.values]
-    data_grouped_by_dut = data_with_dut_group.groupby("dut_group_").agg(
-        {
+    if with_pressure_and_humidity:
+        agg = {
+            "dut_last": "last",
+            f"{meter}_dcv_mean": lambda v: np.mean(np.abs(v)),
+            (f"{meter}_dcv_sem"): combine_stds_sum,
+            "temperature_mean": "mean",
+            "pressure_mean": "mean",
+            "humidity_mean": "mean",
+            "datetime_mean": "mean",
+        }
+        columns = [
+            "dut",
+            "dcv_mean",
+            "dcv_sem",
+            "temperature_mean",
+            "pressure_mean",
+            "humidity_mean",
+            "datetime",
+        ]
+    else:
+        agg = {
             "dut_last": "last",
             f"{meter}_dcv_mean": lambda v: np.mean(np.abs(v)),
             (f"{meter}_dcv_sem"): combine_stds_sum,
             "temperature_mean": "mean",
             "datetime_mean": "mean",
         }
-    )
-    data_grouped_by_dut.columns = [
-        "dut",
-        "dcv_mean",
-        "dcv_sem",
-        "temperature_mean",
-        "datetime",
-    ]
+        columns = [
+            "dut",
+            "dcv_mean",
+            "dcv_sem",
+            "temperature_mean",
+            "datetime",
+        ]
+
+    data_grouped_by_dut = data_with_dut_group.groupby("dut_group_").agg(agg)
+    data_grouped_by_dut.columns = columns
     return data_grouped_by_dut
 
 

@@ -66,3 +66,10 @@ def std_minus_first(series):
 
 def std_minus_last(series):
     return np.std(series.iloc[1:])
+
+
+def display_full_df(df):
+    orig_max_rows = pd.get_option("display.max_rows")
+    pd.set_option("display.max_rows", None)
+    display(df)
+    pd.set_option("display.max_rows", orig_max_rows)
