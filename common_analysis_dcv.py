@@ -39,14 +39,12 @@ def analyse_dcv_relative(relative_data, reference_name, reference_value, new_ref
     )
 
     if reference_name != new_reference_name:
-        relative_results_in_ppm = _retarget_reference(
-            relative_results_in_ppm, reference_name, new_reference_name
-        )
+        relative_results_in_ppm = _retarget_reference(relative_results_in_ppm, reference_name, new_reference_name)
 
     return relative_results_in_ppm
 
 
-def analyse_dcv_absolute(absolute_data, reference_name, meter):
+def analyse_dcv_absolute(absolute_data, reference_name, meter, skip_bad_groups=False):
     absolute_data_with_groups = add_dut_and_setting_group(absolute_data)
     # display(analyse_group_quality(absolute_data_with_groups, f'{meter}_dcv'))
     absolute_data_first_and_last_in_group_removed = clean_groups(absolute_data_with_groups, meter)
@@ -64,8 +62,9 @@ def dcv_calculate_ratios(grouped_by_dut, reference):
     refs = grouped_by_dut[grouped_by_dut.dut == reference]
     duts = grouped_by_dut[grouped_by_dut.dut != reference]
     ratio_input = duts.apply(lambda x: _dcv_add_prev_and_next_refs(refs, grouped_by_dut, x.name), axis=1)
-
-    ratios_before_input = ratio_input[~ratio_input.dut_before.isna()].copy()
+    if len(duts) == 0:
+        return pd.DataFrame({"ratio": 1, "ratio_sem": 0, "temperature_mean": np.nan}, index=(reference,))
+    ratios_before_input = ratio_input[~ratio_input["dut_before"].isna()].copy()
     ratios_before_input["ratio"] = ratios_before_input.dcv_mean / ratios_before_input.dcv_mean_before
     ratios_before_input["ratio_sem"] = combine_stds_ratio_product(
         ratios_before_input.ratio,
@@ -101,7 +100,6 @@ def dcv_calculate_ratios(grouped_by_dut, reference):
         ]
     )
     return ratios_from_absolute
-
 
 
 def aggregate_absolute_data_by_group(data, meter):
@@ -149,15 +147,16 @@ def analyse_group_quality(data, column):
     return data.groupby("group").agg({column: ["std", std_minus_first, std_minus_last]})
 
 
-def clean_groups(data, meter):
+def clean_groups(data, meter, skip_bad_groups=False):
     groups = data.groupby("group").apply(lambda x: x.iloc[1:-1]).droplevel(0)
     quality = groups.groupby("group").agg({f"{meter}_dcv": "std", "dut": "last"})
-    bad_group_index = quality[f"{meter}_dcv"] >= 1e-6
-    if bad_group_index.any():
-        bad_groups = quality[bad_group_index]
-        display("Found bad groups:")
-        display(bad_groups)
-        return groups[~groups.group.isin(bad_groups.index)]
+    if skip_bad_groups:
+        bad_group_index = quality[f"{meter}_dcv"] >= 1e-6
+        if bad_group_index.any():
+            bad_groups = quality[bad_group_index]
+            display("Found bad groups:")
+            display(bad_groups)
+            return groups[~groups.group.isin(bad_groups.index)]
     return groups
 
 
@@ -230,21 +229,29 @@ def add_dut_neg_and_pos_group(data):
 
 
 def _relative_dcv_substract_offset(relative_data, meter, short_offset):
-    relative_data[f'{meter}_dcv'] -= short_offset
+    relative_data[f"{meter}_dcv"] -= short_offset
     return relative_data
 
 
 def _retarget_reference(relative_results_in_ppm, reference_name, new_reference_name):
-    relative_results_in_ppm = pd.concat([relative_results_in_ppm, pd.DataFrame({'mean_in_ppm': 0, 'sem_in_ppm': 0}, index=(reference_name,))])
-    relative_results_in_ppm['mean_in_ppm'] = relative_results_in_ppm[relative_results_in_ppm.index == new_reference_name].mean_in_ppm.iloc[0]-relative_results_in_ppm.mean_in_ppm
-    relative_results_in_ppm['sem_in_ppm'] = np.sqrt(relative_results_in_ppm[relative_results_in_ppm.index == new_reference_name].sem_in_ppm.iloc[0]**2+relative_results_in_ppm.sem_in_ppm**2)
+    relative_results_in_ppm = pd.concat(
+        [relative_results_in_ppm, pd.DataFrame({"mean_in_ppm": 0, "sem_in_ppm": 0}, index=(reference_name,))]
+    )
+    relative_results_in_ppm["mean_in_ppm"] = (
+        relative_results_in_ppm[relative_results_in_ppm.index == new_reference_name].mean_in_ppm.iloc[0]
+        - relative_results_in_ppm.mean_in_ppm
+    )
+    relative_results_in_ppm["sem_in_ppm"] = np.sqrt(
+        relative_results_in_ppm[relative_results_in_ppm.index == new_reference_name].sem_in_ppm.iloc[0] ** 2
+        + relative_results_in_ppm.sem_in_ppm**2
+    )
     return relative_results_in_ppm
 
 
 def _check_sign(data, meter):
-    data['sign'] = (data[f'{meter}_dcv'] / data[f'{meter}_dcv'].abs())
-    check_sign_data = data.reset_index().groupby(['dut', 'polarity']).agg({'sign': 'unique', 'datetime': 'first'})
-    check_sign_data['sign_length'] = check_sign_data['sign'].apply(lambda r: len(r))
+    data["sign"] = data[f"{meter}_dcv"] / data[f"{meter}_dcv"].abs()
+    check_sign_data = data.reset_index().groupby(["dut", "polarity"]).agg({"sign": "unique", "datetime": "first"})
+    check_sign_data["sign_length"] = check_sign_data["sign"].apply(lambda r: len(r))
     sign_failures = check_sign_data[check_sign_data.sign_length > 1]
     if not sign_failures.empty:
         display("Sign flip in measurement with same reported polarity and dut")
@@ -272,5 +279,15 @@ def _dcv_add_prev_and_next_refs(refs, duts, dut_index):
 
 def _dcv_combine_absolute_and_relative(ratios_ppm, relative_results_in_ppm):
     combined = ratios_ppm.join(relative_results_in_ppm)
-    combined.columns = ["abs_temperature", "abs_mean", "abs_sem", "rel_mean", "rel_sem", "rel_datetime", "rel_temperature", "rel_pressure", "rel_humidify"]
+    combined.columns = [
+        "abs_temperature",
+        "abs_mean",
+        "abs_sem",
+        "rel_mean",
+        "rel_sem",
+        "rel_datetime",
+        "rel_temperature",
+        "rel_pressure",
+        "rel_humidify",
+    ]
     return combined
