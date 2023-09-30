@@ -19,12 +19,16 @@ def analyse_dcv(absolute_data, relative_data, meter_absolute, meter_relative):
 
 
 def analyse_dcv_k182(relative_data_k182, substract_short_offset=False):
+    return analyse_dcv_k182_for_other_reference(relative_data_k182, "F7001bat", 10, substract_short_offset)
+
+
+def analyse_dcv_k182_for_other_reference(relative_data_k182, reference_name, reference_value=10, substract_short_offset=False):
     if substract_short_offset:
         short_voltage = relative_data_k182[relative_data_k182.dut_pos_lead != "short"]["k182_dcv"].mean()
     else:
         short_voltage = 0
     relative_data = relative_data_k182[(relative_data_k182.dut_pos_lead != "short")]
-    results = analyse_dcv_relative(relative_data, "F7001bat", 10, "F7001bat", "k182", short_voltage)
+    results = analyse_dcv_relative(relative_data, reference_name, reference_value, reference_name, "k182", short_voltage)
     return results
 
 
