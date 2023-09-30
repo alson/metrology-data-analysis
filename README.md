@@ -2,6 +2,12 @@
 
 This is a loose collection of mostly Jupyter notebooks but also some Python scripts for analysing metrology data acquired by the scripts in the [dmm-logging repo](https://github.com/alson/dmm-logging).
 
+## How to install a Jupyter Notebook kernel in the Poetry virtual environment
+
+Run this command to install the kernel in Jupyter: `poetry run ipython kernel install --user --name=metrology-data-analysis`
+
+Then run `jupyter notebook`, and select the metrology-data-analysis kernel under Kernel > Change kernel.
+
 ## Shared code
 
 `common_plotting.py` module with commonly used functions for importing, processing and plotting data.
