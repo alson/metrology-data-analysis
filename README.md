@@ -1,6 +1,6 @@
 # metrology-data-analysis
 
-This is a loose collection of mostly Jupyter notebooks but also some Python scripts for analysing metrology data acquired by the scripts in the [dmm-logging repo](https://github.com/alson/dmm-logging).
+This is a loose collection of mostly Jupyter notebooks but also some Python scripts for analysing metrology data acquired by the scripts in the [dmm-logging repo](https://github.com/alson/dmm-logging). Most of the notebooks expect that the data from the [metrology-data](https://github.com/alson/metrology-data) repository is cloned in the directory `data` within the directory that contains this `README.md`. Any file under `data/raw` will supersede a file by the same name (plus `.bz2` extension) under `data`.
 
 ## How to install a Jupyter Notebook kernel in the Poetry virtual environment
 
