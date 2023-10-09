@@ -73,3 +73,8 @@ def display_full_df(df):
     pd.set_option("display.max_rows", None)
     display(df)
     pd.set_option("display.max_rows", orig_max_rows)
+
+
+def filter_acal_points(data, ks3458a_number):
+    is_acal = data[f"last_acal_{ks3458a_number}"] != data[f"last_acal_{ks3458a_number}"].shift(1)
+    return data[is_acal]

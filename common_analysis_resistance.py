@@ -52,11 +52,6 @@ def analyse_grouped_ohms(data, meter="ag3458a_2", temperature_columns=["temperat
     return data_grouped_by_dut
 
 
-def filter_acal_points(data, ks3458a_number):
-    is_acal = data[f"last_acal_{ks3458a_number}"] != data[f"last_acal_{ks3458a_number}"].shift(1)
-    return data[is_acal]
-
-
 def add_sr104_temp(data, ohm_column_name):
     base_name, _, unit = ohm_column_name.rpartition("_")
     assert unit == "ohm"
