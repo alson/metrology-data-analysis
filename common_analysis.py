@@ -13,6 +13,10 @@ def add_dut_and_setting_group(data):
 
 
 def combine_stds_sum(stds):
+    return np.sqrt(np.sum(stds**2))
+
+
+def combine_stds_mean(stds):
     return np.sqrt(np.sum(stds**2) / np.size(stds))
 
 

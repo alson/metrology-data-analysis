@@ -4,6 +4,7 @@ from IPython.display import display
 
 from common_analysis import (
     add_dut_and_setting_group,
+    combine_stds_mean,
     combine_stds_ratio_product,
     combine_stds_sum,
     std_minus_first,
@@ -61,14 +62,14 @@ def analyse_dcv_absolute(absolute_data, reference_name, meter, skip_bad_groups=F
     if with_pressure_and_humidity:
         agg = {
             "dcv_mean": "mean",
-            "dcv_sem": combine_stds_sum,
+            "dcv_sem": combine_stds_mean,
             "temperature_mean": "mean",
             "pressure_mean": "mean",
             "humidity_mean": "mean",
             "datetime": "mean",
         }
     else:
-        agg = {"dcv_mean": "mean", "dcv_sem": combine_stds_sum, "temperature_mean": "mean", "datetime": "mean"}
+        agg = {"dcv_mean": "mean", "dcv_sem": combine_stds_mean, "temperature_mean": "mean", "datetime": "mean"}
     absolute_results = absolute_grouped_by_dut_group.groupby("dut").agg(agg)
     ratios_from_absolute = dcv_calculate_ratios(absolute_grouped_by_dut_group, reference_name)
     ratios_in_ppm = _absolute_results_to_ppm(ratios_from_absolute)
@@ -108,7 +109,7 @@ def dcv_calculate_ratios(grouped_by_dut, reference):
         ]
     )
     ratios_from_absolute = ratios_before_and_after.groupby("dut").agg(
-        {"ratio": "mean", "ratio_sem": combine_stds_sum, "temperature_mean": "mean"}
+        {"ratio": "mean", "ratio_sem": combine_stds_mean, "temperature_mean": "mean"}
     )
     ratios_from_absolute = pd.concat(
         [
@@ -152,7 +153,7 @@ def aggregate_absolute_data_by_dut_group(absolute_dcv_data, meter, with_pressure
         agg = {
             "dut_last": "last",
             f"{meter}_dcv_mean": lambda v: np.mean(np.abs(v)),
-            (f"{meter}_dcv_sem"): combine_stds_sum,
+            (f"{meter}_dcv_sem"): combine_stds_mean,
             "temperature_mean": "mean",
             "pressure_mean": "mean",
             "humidity_mean": "mean",
@@ -243,7 +244,7 @@ def relative_results_to_ppm(relative_data, reference_name, reference_value, new_
     relative_results = grouped_by_dut_polarity.groupby("dut").agg(
         {
             "mean": "mean",
-            "sem": combine_stds_sum,
+            "sem": combine_stds_mean,
             "datetime": "mean",
             "temperature": "mean",
             "pressure": "mean",
