@@ -63,13 +63,14 @@ def analyse_dcv_absolute(absolute_data, reference_name, meter, skip_bad_groups=F
         agg = {
             "dcv_mean": "mean",
             "dcv_sem": combine_stds_mean,
+            "dcv_std": combine_stds_mean,
             "temperature_mean": "mean",
             "pressure_mean": "mean",
             "humidity_mean": "mean",
             "datetime": "mean",
         }
     else:
-        agg = {"dcv_mean": "mean", "dcv_sem": combine_stds_mean, "temperature_mean": "mean", "datetime": "mean"}
+        agg = {"dcv_mean": "mean", "dcv_sem": combine_stds_mean, "dcv_std": combine_stds_mean, "temperature_mean": "mean", "datetime": "mean"}
     absolute_results = absolute_grouped_by_dut_group.groupby("dut").agg(agg)
     ratios_from_absolute = dcv_calculate_ratios(absolute_grouped_by_dut_group, reference_name)
     ratios_in_ppm = _absolute_results_to_ppm(ratios_from_absolute)
@@ -81,7 +82,7 @@ def dcv_calculate_ratios(grouped_by_dut, reference):
     duts = grouped_by_dut[grouped_by_dut.dut != reference]
     ratio_input = duts.apply(lambda x: _dcv_add_prev_and_next_refs(refs, grouped_by_dut, x.name), axis=1)
     if len(duts) == 0:
-        return pd.DataFrame({"ratio": 1, "ratio_sem": 0, "temperature_mean": np.nan}, index=(reference,))
+        return pd.DataFrame({"ratio": 1, "ratio_sem": 0, "ratio_std": 0, "temperature_mean": np.nan}, index=(reference,))
     ratios_before_input = ratio_input[~ratio_input["dut_before"].isna()].copy()
     ratios_before_input["ratio"] = ratios_before_input.dcv_mean / ratios_before_input.dcv_mean_before
     ratios_before_input["ratio_sem"] = combine_stds_ratio_product(
@@ -90,6 +91,13 @@ def dcv_calculate_ratios(grouped_by_dut, reference):
         ratios_before_input.dcv_sem,
         ratios_before_input.dcv_mean_before,
         ratios_before_input.dcv_sem_before,
+    )
+    ratios_before_input["ratio_std"] = combine_stds_ratio_product(
+        ratios_before_input.ratio,
+        ratios_before_input.dcv_mean,
+        ratios_before_input.dcv_std,
+        ratios_before_input.dcv_mean_before,
+        ratios_before_input.dcv_std_before,
     )
 
     ratios_after_input = ratio_input[~ratio_input.dut_after.isna()].copy()
@@ -101,20 +109,27 @@ def dcv_calculate_ratios(grouped_by_dut, reference):
         ratios_after_input.dcv_mean_after,
         ratios_after_input.dcv_sem_after,
     )
+    ratios_after_input["ratio_std"] = combine_stds_ratio_product(
+        ratios_after_input.ratio,
+        ratios_after_input.dcv_mean,
+        ratios_after_input.dcv_std,
+        ratios_after_input.dcv_mean_after,
+        ratios_after_input.dcv_std_after,
+    )
 
     ratios_before_and_after = pd.concat(
         [
-            ratios_before_input[["dut", "ratio", "ratio_sem", "temperature_mean"]],
-            ratios_after_input[["dut", "ratio", "ratio_sem", "temperature_mean"]],
+            ratios_before_input[["dut", "ratio", "ratio_sem", "ratio_std", "temperature_mean"]],
+            ratios_after_input[["dut", "ratio", "ratio_sem", "ratio_std", "temperature_mean"]],
         ]
     )
     ratios_from_absolute = ratios_before_and_after.groupby("dut").agg(
-        {"ratio": "mean", "ratio_sem": combine_stds_mean, "temperature_mean": "mean"}
+        {"ratio": "mean", "ratio_sem": combine_stds_mean, "ratio_std": combine_stds_mean, "temperature_mean": "mean"}
     )
     ratios_from_absolute = pd.concat(
         [
             ratios_from_absolute,
-            pd.DataFrame({"ratio": 1, "ratio_sem": 0, "temperature_mean": np.nan}, index=(reference,)),
+            pd.DataFrame({"ratio": 1, "ratio_sem": 0, "ratio_std": 0, "temperature_mean": np.nan}, index=(reference,)),
         ]
     )
     return ratios_from_absolute
@@ -154,6 +169,7 @@ def aggregate_absolute_data_by_dut_group(absolute_dcv_data, meter, with_pressure
             "dut_last": "last",
             f"{meter}_dcv_mean": lambda v: np.mean(np.abs(v)),
             (f"{meter}_dcv_sem"): combine_stds_mean,
+            (f"{meter}_dcv_std"): combine_stds_mean,
             "temperature_mean": "mean",
             "pressure_mean": "mean",
             "humidity_mean": "mean",
@@ -163,6 +179,7 @@ def aggregate_absolute_data_by_dut_group(absolute_dcv_data, meter, with_pressure
             "dut",
             "dcv_mean",
             "dcv_sem",
+            "dcv_std",
             "temperature_mean",
             "pressure_mean",
             "humidity_mean",
@@ -173,6 +190,7 @@ def aggregate_absolute_data_by_dut_group(absolute_dcv_data, meter, with_pressure
             "dut_last": "last",
             f"{meter}_dcv_mean": lambda v: np.mean(np.abs(v)),
             (f"{meter}_dcv_sem"): combine_stds_sum,
+            (f"{meter}_dcv_std"): combine_stds_sum,
             "temperature_mean": "mean",
             "datetime_mean": "mean",
         }
@@ -180,6 +198,7 @@ def aggregate_absolute_data_by_dut_group(absolute_dcv_data, meter, with_pressure
             "dut",
             "dcv_mean",
             "dcv_sem",
+            "dcv_std",
             "temperature_mean",
             "datetime",
         ]
@@ -245,6 +264,7 @@ def relative_results_to_ppm(relative_data, reference_name, reference_value, new_
         {
             "mean": "mean",
             "sem": combine_stds_mean,
+            "std": combine_stds_mean,
             "datetime": "mean",
             "temperature": "mean",
             "pressure": "mean",
@@ -255,6 +275,7 @@ def relative_results_to_ppm(relative_data, reference_name, reference_value, new_
     relative_results_in_ppm.index = relative_results.index
     relative_results_in_ppm["mean_in_ppm"] = (relative_results["mean"] / reference_value) * 1e6
     relative_results_in_ppm["sem_in_ppm"] = (relative_results["sem"] / reference_value) * 1e6
+    relative_results_in_ppm["std_in_ppm"] = (relative_results["std"] / reference_value) * 1e6
     relative_results_in_ppm["datetime"] = relative_results["datetime"]
     relative_results_in_ppm["temperature"] = relative_results.temperature
     relative_results_in_ppm["pressure"] = relative_results.pressure
@@ -281,7 +302,7 @@ def _relative_dcv_substract_offset(relative_data, meter, short_offset):
 
 def _retarget_reference(relative_results_in_ppm, reference_name, new_reference_name):
     relative_results_in_ppm = pd.concat(
-        [relative_results_in_ppm, pd.DataFrame({"mean_in_ppm": 0, "sem_in_ppm": 0}, index=(reference_name,))]
+        [relative_results_in_ppm, pd.DataFrame({"mean_in_ppm": 0, "sem_in_ppm": 0, "std_in_ppm": 0}, index=(reference_name,))]
     )
     relative_results_in_ppm["mean_in_ppm"] = (
         relative_results_in_ppm[relative_results_in_ppm.index == new_reference_name].mean_in_ppm.iloc[0]
@@ -290,6 +311,10 @@ def _retarget_reference(relative_results_in_ppm, reference_name, new_reference_n
     relative_results_in_ppm["sem_in_ppm"] = np.sqrt(
         relative_results_in_ppm[relative_results_in_ppm.index == new_reference_name].sem_in_ppm.iloc[0] ** 2
         + relative_results_in_ppm.sem_in_ppm**2
+    )
+    relative_results_in_ppm["std_in_ppm"] = np.sqrt(
+        relative_results_in_ppm[relative_results_in_ppm.index == new_reference_name].std_in_ppm.iloc[0] ** 2
+        + relative_results_in_ppm.std_in_ppm**2
     )
     return relative_results_in_ppm
 
@@ -307,9 +332,10 @@ def _check_sign(data, meter):
 
 
 def _absolute_results_to_ppm(ratios):
-    ratios_ppm = ratios.copy().drop(["ratio", "ratio_sem"], axis=1)
+    ratios_ppm = ratios.copy().drop(["ratio", "ratio_sem", "ratio_std"], axis=1)
     ratios_ppm["ppm_diff"] = (1 - ratios.ratio) * 1e6
     ratios_ppm["ppm_sem"] = ratios.ratio_sem * 1e6
+    ratios_ppm["ppm_std"] = ratios.ratio_std * 1e6
     return ratios_ppm
 
 
@@ -329,8 +355,10 @@ def _dcv_combine_absolute_and_relative(ratios_ppm, relative_results_in_ppm):
         "abs_temperature",
         "abs_mean",
         "abs_sem",
+        "abs_std",
         "rel_mean",
         "rel_sem",
+        "rel_std",
         "rel_datetime",
         "rel_temperature",
         "rel_pressure",
